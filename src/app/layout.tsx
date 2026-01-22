@@ -2,10 +2,8 @@ import '~/styles/globals.css'
 
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
-import { ThemeProvider } from 'next-themes'
-
+import Providers from '~/components/providers'
 import { Toaster } from '~/components/ui/sonner'
-import { TRPCReactProvider } from '~/trpc/react'
 
 export const metadata: Metadata = {
   title: 'TaskFlow - Task Management Dashboard',
@@ -23,14 +21,16 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang='en' className={geist.variable} suppressHydrationWarning>
+    <html
+      lang='en'
+      className={`${geist.variable} h-full`}
+      suppressHydrationWarning
+    >
       <body>
-        <ThemeProvider attribute='class' defaultTheme='system' enableSystem>
-          <TRPCReactProvider>
-            {children}
-            <Toaster />
-          </TRPCReactProvider>
-        </ThemeProvider>
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
       </body>
     </html>
   )
