@@ -156,8 +156,7 @@ This project uses TypeScript with strict mode enabled:
 
 ## Code Quality
 
-- **ESLint** for code linting
-- **Prettier** for code formatting
+- **Biome** for code linting and formatting
 - **TypeScript** strict mode for type safety
 - Clean code principles: reusable, readable, functional approach
 
