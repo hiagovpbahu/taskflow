@@ -59,13 +59,17 @@ The application will start and connect to the JSONPlaceholder API for task data.
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-- `npm run lint:fix` - Fix ESLint errors
+- `npm run preview` - Build and start production server
 - `npm run typecheck` - Run TypeScript type checking
+- `npm run check` - Run linting and type checking
+- `npm run format` - Format code with Biome
+- `npm run format:check` - Check code formatting with Biome
+- `npm run lint` - Run linting with Biome
+- `npm run lint:fix` - Fix linting errors with Biome
+- `npm run biome:check` - Run Biome check (format + lint)
+- `npm run biome:check:fix` - Run Biome check and fix issues
 - `npm test` - Run tests with Vitest
-- `npm test:ui` - Run tests with Vitest UI
-- `npm run format:check` - Check code formatting
-- `npm run format:write` - Format code with Prettier
+- `npm run test:ui` - Run tests with Vitest UI
 
 ## API
 
