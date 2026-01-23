@@ -1,7 +1,7 @@
 'use client'
 
 import { CheckCircle2, MoreVertical, XCircle } from 'lucide-react'
-import { memo, useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
@@ -13,13 +13,16 @@ import {
 import { TableCell, TableRow } from '~/components/ui/table'
 import type { Todo } from '~/types/todo'
 import type { User } from '~/types/user'
+import { StatusToggle } from './status-toggle'
 
 interface TaskRowProps {
   readonly task: Todo
   readonly user: User | undefined
   readonly onEdit: (taskId: number) => void
   readonly onDelete: (taskId: number) => void
+  readonly onStatusChange?: (taskId: number, completed: boolean) => void
   readonly isDeleting?: boolean
+  readonly isUpdatingStatus?: boolean
 }
 
 function TaskRowComponent({
@@ -27,14 +30,32 @@ function TaskRowComponent({
   user,
   onEdit,
   onDelete,
+  onStatusChange,
   isDeleting = false,
+  isUpdatingStatus = false,
 }: TaskRowProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const handleStatusToggle = useCallback(
+    (checked: boolean) => {
+      onStatusChange?.(task.id, checked)
+    },
+    [task.id, onStatusChange],
+  )
 
   return (
     <TableRow>
-      <TableCell className='w-[50px] shrink-0 whitespace-nowrap text-center sm:text-left font-mono text-muted-foreground text-xs sm:w-[100px] sm:text-sm'>
+      <TableCell className='w-[50px] shrink-0 whitespace-nowrap text-center sm:text-left font-mono text-muted-foreground text-xs sm:w-[70px] sm:text-sm'>
         #{task.id}
+      </TableCell>
+      <TableCell className='w-[80px] shrink-0 p-2 text-center sm:text-left'>
+        <div className='flex items-center justify-center'>
+          <StatusToggle
+            checked={task.completed}
+            onCheckedChange={handleStatusToggle}
+            disabled={isUpdatingStatus || isDeleting}
+            ariaLabel={`Toggle status for task ${task.id}`}
+          />
+        </div>
       </TableCell>
       <TableCell className='font-medium min-w-0 whitespace-normal wrap-break-word items-center justify-center'>
         <div className='flex flex-col gap-1.5'>
@@ -131,4 +152,15 @@ function TaskRowComponent({
   )
 }
 
-export const TaskRow = memo(TaskRowComponent)
+export const TaskRow = memo(TaskRowComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.task.id === nextProps.task.id &&
+    prevProps.task.completed === nextProps.task.completed &&
+    prevProps.task.title === nextProps.task.title &&
+    prevProps.task.userId === nextProps.task.userId &&
+    prevProps.user?.id === nextProps.user?.id &&
+    prevProps.user?.name === nextProps.user?.name &&
+    prevProps.isDeleting === nextProps.isDeleting &&
+    prevProps.isUpdatingStatus === nextProps.isUpdatingStatus
+  )
+})

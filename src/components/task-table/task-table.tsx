@@ -2,7 +2,7 @@
 
 import { AlertCircle, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useMediaQuery } from 'react-responsive'
 import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert'
@@ -83,6 +83,54 @@ export function TaskTable({
     },
   })
 
+  const updateMutation = api.todo.update.useMutation({
+    onMutate: async ({ id, completed }) => {
+      await utils.todo.getAll.cancel()
+
+      const previousData = utils.todo.getAll.getData({
+        userId: selectedUserId ?? undefined,
+        status: selectedStatus,
+        page: currentPage,
+        pageSize: itemsPerPage,
+      })
+
+      if (previousData && completed !== undefined) {
+        utils.todo.getAll.setData(
+          {
+            userId: selectedUserId ?? undefined,
+            status: selectedStatus,
+            page: currentPage,
+            pageSize: itemsPerPage,
+          },
+          {
+            ...previousData,
+            todos: previousData.todos.map((todo) =>
+              todo.id === id ? { ...todo, completed } : todo,
+            ),
+          },
+        )
+      }
+
+      return { previousData }
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previousData) {
+        utils.todo.getAll.setData(
+          {
+            userId: selectedUserId ?? undefined,
+            status: selectedStatus,
+            page: currentPage,
+            pageSize: itemsPerPage,
+          },
+          context.previousData,
+        )
+      }
+      toast.error(`Failed to update task status: ${error.message}`)
+    },
+  })
+
+  const [updatingTaskId, setUpdatingTaskId] = useState<number | null>(null)
+
   const todos = todosData?.todos ?? []
   const totalTodos = todosData?.total ?? 0
   const totalPages = todosData?.totalPages ?? 0
@@ -92,20 +140,38 @@ export function TaskTable({
     return (userId: number) => userMap.get(userId)
   }, [users])
 
-  const handleEdit = (taskId: number) => {
-    router.push(`/edit/${taskId}`)
-  }
+  const handleEdit = useCallback(
+    (taskId: number) => {
+      router.push(`/edit/${taskId}`)
+    },
+    [router],
+  )
 
-  const handleDeleteClick = (taskId: number) => {
+  const handleDeleteClick = useCallback((taskId: number) => {
     setDeletingTaskId(taskId)
     setShowDeleteDialog(true)
-  }
+  }, [])
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (deletingTaskId) {
       deleteMutation.mutate({ id: deletingTaskId })
     }
-  }
+  }, [deletingTaskId, deleteMutation])
+
+  const handleStatusChange = useCallback(
+    (taskId: number, completed: boolean) => {
+      setUpdatingTaskId(taskId)
+      updateMutation.mutate(
+        { id: taskId, completed },
+        {
+          onSettled: () => {
+            setUpdatingTaskId(null)
+          },
+        },
+      )
+    },
+    [updateMutation],
+  )
 
   const hasActiveFilters = selectedUserId !== null || selectedStatus !== 'all'
 
@@ -160,10 +226,14 @@ export function TaskTable({
             <Table className='w-full'>
               <TableHeader>
                 <TableRow>
-                  <TableHead className='w-[60px] sm:w-[100px]'>
+                  <TableHead className='w-[50px] sm:w-[70px]'>
                     Task ID
                   </TableHead>
-                  <TableHead className='min-w-0'>Title</TableHead>
+                  <TableHead className='w-[80px]'>Set Status</TableHead>
+                  <TableHead className='min-w-0'>
+                    <span className='sm:hidden'>Task</span>
+                    <span className='hidden sm:inline'>Title</span>
+                  </TableHead>
                   <TableHead className='w-[140px] hidden sm:table-cell'>
                     Status
                   </TableHead>
@@ -181,7 +251,7 @@ export function TaskTable({
                 <TableBody>
                   {todos.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className='h-24 text-center'>
+                      <TableCell colSpan={6} className='h-24 text-center'>
                         <p className='text-muted-foreground'>No tasks found</p>
                       </TableCell>
                     </TableRow>
@@ -193,7 +263,9 @@ export function TaskTable({
                         user={getUserById(task.userId)}
                         onEdit={handleEdit}
                         onDelete={handleDeleteClick}
+                        onStatusChange={handleStatusChange}
                         isDeleting={deletingTaskId === task.id}
+                        isUpdatingStatus={updatingTaskId === task.id}
                       />
                     ))
                   )}
