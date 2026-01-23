@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertCircle, X } from 'lucide-react'
+import { AlertCircle, ChevronFirst, ChevronLast, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useMediaQuery } from 'react-responsive'
@@ -287,6 +287,17 @@ export function TaskTable({
                 type='button'
                 variant='outline'
                 size='sm'
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                aria-label='First page'
+              >
+                <ChevronFirst className='h-4 w-4' />
+                <span className='sr-only sm:not-sr-only sm:ml-1'>First</span>
+              </Button>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
                 aria-label='Previous page'
@@ -307,6 +318,17 @@ export function TaskTable({
                 aria-label='Next page'
               >
                 Next
+              </Button>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                aria-label='Last page'
+              >
+                <span className='sr-only sm:not-sr-only sm:mr-1'>Last</span>
+                <ChevronLast className='h-4 w-4' />
               </Button>
             </div>
           </div>
