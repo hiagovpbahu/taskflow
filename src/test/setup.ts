@@ -15,4 +15,25 @@ if (globalThis.window !== undefined) {
       dispatchEvent: vi.fn(),
     })),
   })
+
+  if (globalThis.window.Element !== undefined) {
+    const originalHasPointerCapture = globalThis.window.Element.prototype.hasPointerCapture
+    const originalSetPointerCapture = globalThis.window.Element.prototype.setPointerCapture
+    const originalReleasePointerCapture =
+      globalThis.window.Element.prototype.releasePointerCapture
+    const originalScrollIntoView = globalThis.window.Element.prototype.scrollIntoView
+
+    if (originalHasPointerCapture === undefined) {
+      globalThis.window.Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false)
+    }
+    if (originalSetPointerCapture === undefined) {
+      globalThis.window.Element.prototype.setPointerCapture = vi.fn()
+    }
+    if (originalReleasePointerCapture === undefined) {
+      globalThis.window.Element.prototype.releasePointerCapture = vi.fn()
+    }
+    if (originalScrollIntoView === undefined) {
+      globalThis.window.Element.prototype.scrollIntoView = vi.fn()
+    }
+  }
 }

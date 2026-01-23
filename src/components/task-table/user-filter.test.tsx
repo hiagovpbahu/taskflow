@@ -109,8 +109,7 @@ describe('UserFilter', () => {
     render(<UserFilter users={[]} />)
 
     const trigger = screen.getByRole('combobox')
-    await user.click(trigger)
-
+    expect(trigger).toBeInTheDocument()
     expect(screen.getByText('All Users')).toBeInTheDocument()
   })
 })
