@@ -20,8 +20,21 @@ describe('todoRouter', () => {
     vi.clearAllMocks()
   })
 
+  describe('getStatusOptions', () => {
+    it('should return all status options', async () => {
+      const caller = createCaller(createMockContext)
+      const result = await caller.todo.getStatusOptions()
+
+      expect(result).toEqual([
+        { value: 'all', label: 'All Status' },
+        { value: 'completed', label: 'Completed' },
+        { value: 'pending', label: 'Pending' },
+      ])
+    })
+  })
+
   describe('getAll', () => {
-    it('should fetch all todos', async () => {
+    it('should fetch all todos without filters', async () => {
       const mockTodos: Todo[] = [
         {
           id: 1,
@@ -42,8 +55,153 @@ describe('todoRouter', () => {
       const caller = createCaller(createMockContext)
       const result = await caller.todo.getAll()
 
-      expect(result).toEqual(mockTodos)
+      expect(result.todos).toEqual(mockTodos)
+      expect(result.total).toBe(2)
+      expect(result.page).toBe(1)
+      expect(result.pageSize).toBe(10)
+      expect(result.totalPages).toBe(1)
       expect(mockFetchJsonPlaceholder).toHaveBeenCalledWith('/todos')
+    })
+
+    it('should filter todos by userId', async () => {
+      const mockTodos: Todo[] = [
+        {
+          id: 1,
+          userId: 1,
+          title: 'Test todo',
+          completed: false,
+        },
+        {
+          id: 2,
+          userId: 2,
+          title: 'Another todo',
+          completed: true,
+        },
+        {
+          id: 3,
+          userId: 1,
+          title: 'Third todo',
+          completed: false,
+        },
+      ]
+
+      mockFetchJsonPlaceholder.mockResolvedValue(mockTodos)
+
+      const caller = createCaller(createMockContext)
+      const result = await caller.todo.getAll({ userId: 1 })
+
+      expect(result.todos).toHaveLength(2)
+      expect(result.todos.every((todo) => todo.userId === 1)).toBe(true)
+      expect(result.total).toBe(2)
+    })
+
+    it('should filter todos by completed status', async () => {
+      const mockTodos: Todo[] = [
+        {
+          id: 1,
+          userId: 1,
+          title: 'Test todo',
+          completed: false,
+        },
+        {
+          id: 2,
+          userId: 2,
+          title: 'Another todo',
+          completed: true,
+        },
+        {
+          id: 3,
+          userId: 1,
+          title: 'Third todo',
+          completed: true,
+        },
+      ]
+
+      mockFetchJsonPlaceholder.mockResolvedValue(mockTodos)
+
+      const caller = createCaller(createMockContext)
+      const result = await caller.todo.getAll({ status: 'completed' })
+
+      expect(result.todos).toHaveLength(2)
+      expect(result.todos.every((todo) => todo.completed)).toBe(true)
+      expect(result.total).toBe(2)
+    })
+
+    it('should filter todos by pending status', async () => {
+      const mockTodos: Todo[] = [
+        {
+          id: 1,
+          userId: 1,
+          title: 'Test todo',
+          completed: false,
+        },
+        {
+          id: 2,
+          userId: 2,
+          title: 'Another todo',
+          completed: true,
+        },
+        {
+          id: 3,
+          userId: 1,
+          title: 'Third todo',
+          completed: false,
+        },
+      ]
+
+      mockFetchJsonPlaceholder.mockResolvedValue(mockTodos)
+
+      const caller = createCaller(createMockContext)
+      const result = await caller.todo.getAll({ status: 'pending' })
+
+      expect(result.todos).toHaveLength(2)
+      expect(result.todos.every((todo) => !todo.completed)).toBe(true)
+      expect(result.total).toBe(2)
+    })
+
+    it('should paginate todos correctly', async () => {
+      const mockTodos: Todo[] = Array.from({ length: 25 }, (_, i) => ({
+        id: i + 1,
+        userId: 1,
+        title: `Todo ${i + 1}`,
+        completed: i % 2 === 0,
+      }))
+
+      mockFetchJsonPlaceholder.mockResolvedValue(mockTodos)
+
+      const caller = createCaller(createMockContext)
+      const result = await caller.todo.getAll({ page: 2, pageSize: 10 })
+
+      expect(result.todos).toHaveLength(10)
+      expect(result.todos[0]?.id).toBe(11)
+      expect(result.total).toBe(25)
+      expect(result.page).toBe(2)
+      expect(result.pageSize).toBe(10)
+      expect(result.totalPages).toBe(3)
+    })
+
+    it('should combine filters and pagination', async () => {
+      const mockTodos: Todo[] = Array.from({ length: 20 }, (_, i) => ({
+        id: i + 1,
+        userId: i < 10 ? 1 : 2,
+        title: `Todo ${i + 1}`,
+        completed: i % 2 === 0,
+      }))
+
+      mockFetchJsonPlaceholder.mockResolvedValue(mockTodos)
+
+      const caller = createCaller(createMockContext)
+      const result = await caller.todo.getAll({
+        userId: 1,
+        status: 'completed',
+        page: 1,
+        pageSize: 5,
+      })
+
+      expect(result.todos).toHaveLength(5)
+      expect(result.todos.every((todo) => todo.userId === 1)).toBe(true)
+      expect(result.todos.every((todo) => todo.completed)).toBe(true)
+      expect(result.total).toBe(5)
     })
 
     it('should handle API errors', async () => {
