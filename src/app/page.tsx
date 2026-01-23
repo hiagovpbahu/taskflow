@@ -12,7 +12,7 @@ export default function Home() {
       <Sidebar />
       <main className='lg:pl-72'>
         <div className='px-4 sm:px-6 lg:px-8'>
-          <div className='flex flex-col gap-4 mt-8 sm:flex-row sm:justify-between sm:items-center'>
+          <div className='flex flex-col gap-4 mt-6 sm:flex-row sm:justify-between sm:items-center'>
             <h1 className='text-2xl font-semibold'>Task List View</h1>
             <Button
               asChild

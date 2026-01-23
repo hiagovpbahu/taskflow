@@ -1,7 +1,7 @@
 'use client'
 
 import { CheckCircle2, MoreVertical, XCircle } from 'lucide-react'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
@@ -17,12 +17,12 @@ import type { User } from '~/types/user'
 interface TaskRowProps {
   readonly task: Todo
   readonly user: User | undefined
-  readonly onEdit: (task: Todo) => void
+  readonly onEdit: (taskId: number) => void
   readonly onDelete: (taskId: number) => void
   readonly isDeleting?: boolean
 }
 
-export function TaskRow({
+function TaskRowComponent({
   task,
   user,
   onEdit,
@@ -107,7 +107,7 @@ export function TaskRow({
           <DropdownMenuContent align='end'>
             <DropdownMenuItem
               onClick={() => {
-                onEdit(task)
+                onEdit(task.id)
                 setIsMenuOpen(false)
               }}
               disabled={isDeleting}
@@ -130,3 +130,5 @@ export function TaskRow({
     </TableRow>
   )
 }
+
+export const TaskRow = memo(TaskRowComponent)
