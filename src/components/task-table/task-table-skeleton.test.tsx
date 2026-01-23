@@ -32,7 +32,7 @@ describe('TaskTableSkeleton', () => {
     const rows = screen.getAllByRole('row')
     rows.forEach((row) => {
       const cells = row.querySelectorAll('td')
-      expect(cells).toHaveLength(5)
+      expect(cells).toHaveLength(6)
     })
   })
 })

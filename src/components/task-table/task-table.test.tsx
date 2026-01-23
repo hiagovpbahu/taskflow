@@ -74,6 +74,7 @@ const mockTodoUseQuery = vi.fn()
 const mockStatusOptionsUseQuery = vi.fn()
 const mockUserUseQuery = vi.fn()
 const mockDeleteUseMutation = vi.fn()
+const mockUpdateUseMutation = vi.fn()
 
 vi.mock('~/trpc/react', () => ({
   api: {
@@ -83,6 +84,9 @@ vi.mock('~/trpc/react', () => ({
       },
       getStatusOptions: {
         useQuery: () => mockStatusOptionsUseQuery(),
+      },
+      update: {
+        useMutation: () => mockUpdateUseMutation(),
       },
       delete: {
         useMutation: () => mockDeleteUseMutation(),
@@ -97,6 +101,9 @@ vi.mock('~/trpc/react', () => ({
       todo: {
         getAll: {
           invalidate: mockInvalidate,
+          cancel: vi.fn(),
+          getData: vi.fn(),
+          setData: vi.fn(),
         },
       },
     }),
@@ -137,6 +144,10 @@ describe('TaskTable', () => {
       mutate: mockMutate,
       isPending: false,
     })
+    mockUpdateUseMutation.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    })
   })
 
   it('should render loading skeleton when data is loading', () => {
@@ -172,6 +183,15 @@ describe('TaskTable', () => {
 
     expect(screen.getByText('Task 1')).toBeInTheDocument()
     expect(screen.getByText('Task 10')).toBeInTheDocument()
+  })
+
+  it('should display responsive column headers', () => {
+    render(<TaskTable />)
+
+    expect(screen.getByText('Task ID')).toBeInTheDocument()
+    expect(screen.getByText('Set Status')).toBeInTheDocument()
+    expect(screen.getByText('Task')).toBeInTheDocument()
+    expect(screen.getByText('Actions')).toBeInTheDocument()
   })
 
   it('should display pagination information', () => {
@@ -302,7 +322,8 @@ describe('TaskTable', () => {
 
     render(<TaskTable />)
 
-    expect(screen.getByText('No tasks found')).toBeInTheDocument()
+    const emptyCell = screen.getByText('No tasks found').closest('td')
+    expect(emptyCell).toHaveAttribute('colSpan', '6')
   })
 
   it('should use custom itemsPerPage when provided', () => {

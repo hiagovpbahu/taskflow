@@ -180,4 +180,66 @@ describe('TaskRow', () => {
     const actionsButton = screen.getByLabelText('Actions for task 1')
     expect(actionsButton).toHaveAttribute('type', 'button')
   })
+
+  it('should render status toggle', () => {
+    const mockOnStatusChange = vi.fn()
+    renderTaskRow({
+      task: mockTask,
+      user: mockUser,
+      onEdit: mockOnEdit,
+      onDelete: mockOnDelete,
+      onStatusChange: mockOnStatusChange,
+    })
+
+    const toggle = screen.getByLabelText('Toggle status for task 1')
+    expect(toggle).toBeInTheDocument()
+  })
+
+  it('should call onStatusChange when toggle is clicked', async () => {
+    const user = userEvent.setup()
+    const mockOnStatusChange = vi.fn()
+    renderTaskRow({
+      task: mockTask,
+      user: mockUser,
+      onEdit: mockOnEdit,
+      onDelete: mockOnDelete,
+      onStatusChange: mockOnStatusChange,
+    })
+
+    const toggle = screen.getByLabelText('Toggle status for task 1')
+    await user.click(toggle)
+
+    expect(mockOnStatusChange).toHaveBeenCalledWith(1, true)
+    expect(mockOnStatusChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('should disable toggle when isUpdatingStatus is true', () => {
+    const mockOnStatusChange = vi.fn()
+    renderTaskRow({
+      task: mockTask,
+      user: mockUser,
+      onEdit: mockOnEdit,
+      onDelete: mockOnDelete,
+      onStatusChange: mockOnStatusChange,
+      isUpdatingStatus: true,
+    })
+
+    const toggle = screen.getByLabelText('Toggle status for task 1')
+    expect(toggle).toBeDisabled()
+  })
+
+  it('should disable toggle when isDeleting is true', () => {
+    const mockOnStatusChange = vi.fn()
+    renderTaskRow({
+      task: mockTask,
+      user: mockUser,
+      onEdit: mockOnEdit,
+      onDelete: mockOnDelete,
+      onStatusChange: mockOnStatusChange,
+      isDeleting: true,
+    })
+
+    const toggle = screen.getByLabelText('Toggle status for task 1')
+    expect(toggle).toBeDisabled()
+  })
 })
