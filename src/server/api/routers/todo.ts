@@ -14,19 +14,20 @@ const todoFilterSchema = z
   .optional()
 
 export const todoRouter = createTRPCRouter({
-  getStatusOptions: publicProcedure.query(async (): Promise<
-    Array<{ value: string; label: string }>
-  > => {
-    return [
-      { value: 'all', label: 'All Status' },
-      { value: 'completed', label: 'Completed' },
-      { value: 'pending', label: 'Pending' },
-    ]
-  }),
+  getStatusOptions: publicProcedure.query(
+    async (): Promise<Array<{ value: string; label: string }>> => {
+      return [
+        { value: 'all', label: 'All Status' },
+        { value: 'completed', label: 'Completed' },
+        { value: 'pending', label: 'Pending' },
+      ]
+    },
+  ),
 
-  getAll: publicProcedure
-    .input(todoFilterSchema)
-    .query(async ({ input }): Promise<{
+  getAll: publicProcedure.input(todoFilterSchema).query(
+    async ({
+      input,
+    }): Promise<{
       todos: Todo[]
       total: number
       page: number
@@ -69,7 +70,8 @@ export const todoRouter = createTRPCRouter({
         pageSize,
         totalPages: Math.ceil(filteredTodos.length / pageSize),
       }
-    }),
+    },
+  ),
 
   getById: publicProcedure
     .input(z.object({ id: z.number() }))
