@@ -4,10 +4,72 @@ import { fetchJsonPlaceholder } from '~/lib/jsonPlaceholder'
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import type { Todo } from '~/types/todo'
 
+const todoFilterSchema = z
+  .object({
+    userId: z.number().nullable().optional(),
+    status: z.enum(['all', 'completed', 'pending']).optional(),
+    page: z.number().min(1).default(1),
+    pageSize: z.number().min(1).max(100).default(10),
+  })
+  .optional()
+
 export const todoRouter = createTRPCRouter({
-  getAll: publicProcedure.query(async (): Promise<Todo[]> => {
-    return fetchJsonPlaceholder<Todo[]>('/todos')
+  getStatusOptions: publicProcedure.query(async (): Promise<
+    Array<{ value: string; label: string }>
+  > => {
+    return [
+      { value: 'all', label: 'All Status' },
+      { value: 'completed', label: 'Completed' },
+      { value: 'pending', label: 'Pending' },
+    ]
   }),
+
+  getAll: publicProcedure
+    .input(todoFilterSchema)
+    .query(async ({ input }): Promise<{
+      todos: Todo[]
+      total: number
+      page: number
+      pageSize: number
+      totalPages: number
+    }> => {
+      const todos = await fetchJsonPlaceholder<Todo[]>('/todos')
+
+      let filteredTodos = todos
+
+      if (input?.userId !== null && input?.userId !== undefined) {
+        filteredTodos = filteredTodos.filter(
+          (todo) => todo.userId === input.userId,
+        )
+      }
+
+      if (input?.status && input.status !== 'all') {
+        filteredTodos = filteredTodos.filter((todo) => {
+          if (input.status === 'completed') {
+            return todo.completed
+          }
+          if (input.status === 'pending') {
+            return !todo.completed
+          }
+          return true
+        })
+      }
+
+      const page = input?.page ?? 1
+      const pageSize = input?.pageSize ?? 10
+      const startIndex = (page - 1) * pageSize
+      const endIndex = startIndex + pageSize
+
+      const paginatedTodos = filteredTodos.slice(startIndex, endIndex)
+
+      return {
+        todos: paginatedTodos,
+        total: filteredTodos.length,
+        page,
+        pageSize,
+        totalPages: Math.ceil(filteredTodos.length / pageSize),
+      }
+    }),
 
   getById: publicProcedure
     .input(z.object({ id: z.number() }))
