@@ -3,15 +3,16 @@
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import { Sidebar } from '~/components/sidebar'
+import { TaskTable } from '~/components/task-table/task-table'
 import { Button } from '~/components/ui/button'
 
 export default function Home() {
   return (
-    <div className='min-h-screen bg-background'>
+    <div className='bg-background'>
       <Sidebar />
       <main className='lg:pl-72'>
         <div className='px-4 sm:px-6 lg:px-8'>
-          <div className='flex justify-between mt-8 text-center items-center'>
+          <div className='flex flex-col gap-4 mt-8 sm:flex-row sm:justify-between sm:items-center'>
             <h1 className='text-2xl font-semibold'>Task List View</h1>
             <Button
               asChild
@@ -26,6 +27,7 @@ export default function Home() {
               </Link>
             </Button>
           </div>
+          <TaskTable />
         </div>
       </main>
     </div>
