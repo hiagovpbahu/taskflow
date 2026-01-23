@@ -3,6 +3,7 @@ import '~/styles/globals.css'
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
 import Providers from '~/components/providers'
+import { Sidebar } from '~/components/sidebar'
 import { Toaster } from '~/components/ui/sonner'
 
 export const metadata: Metadata = {
@@ -28,7 +29,12 @@ export default function RootLayout({
     >
       <body>
         <Providers>
-          {children}
+          <div className='bg-background'>
+            <Sidebar />
+            <main className='lg:pl-72'>
+              <div className='px-4 sm:px-6 lg:px-8'>{children}</div>
+            </main>
+          </div>
           <Toaster />
         </Providers>
       </body>
