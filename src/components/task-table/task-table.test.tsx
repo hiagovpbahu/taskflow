@@ -207,6 +207,79 @@ describe('TaskTable', () => {
     expect(mockTodoUseQuery).toHaveBeenCalled()
   })
 
+  it('should navigate to first page when First button is clicked', async () => {
+    const user = userEvent.setup()
+    render(<TaskTable />)
+
+    const nextButton = screen.getByLabelText('Next page')
+    await user.click(nextButton)
+
+    mockTodoUseQuery.mockReturnValue({
+      data: {
+        todos: mockTodos.slice(10, 20),
+        total: mockTodos.length,
+        page: 2,
+        pageSize: 10,
+        totalPages: 3,
+      },
+      isLoading: false,
+      error: null,
+    })
+
+    await waitFor(
+      () => {
+        expect(screen.getByText('Page 2 of 3')).toBeInTheDocument()
+      },
+      { timeout: 3000 },
+    )
+
+    const firstButton = screen.getByLabelText('First page')
+    await user.click(firstButton)
+
+    mockTodoUseQuery.mockReturnValue({
+      data: {
+        todos: mockTodos.slice(0, 10),
+        total: mockTodos.length,
+        page: 1,
+        pageSize: 10,
+        totalPages: 3,
+      },
+      isLoading: false,
+      error: null,
+    })
+
+    await waitFor(
+      () => {
+        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
+      },
+      { timeout: 3000 },
+    )
+  })
+
+  it('should navigate to last page when Last button is clicked', async () => {
+    const user = userEvent.setup()
+    render(<TaskTable />)
+
+    const lastButton = screen.getByLabelText('Last page')
+    await user.click(lastButton)
+
+    mockTodoUseQuery.mockReturnValue({
+      data: {
+        todos: mockTodos.slice(20, 25),
+        total: mockTodos.length,
+        page: 3,
+        pageSize: 10,
+        totalPages: 3,
+      },
+      isLoading: false,
+      error: null,
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Page 3 of 3')).toBeInTheDocument()
+    })
+  })
+
   it('should navigate to next page when Next button is clicked', async () => {
     const user = userEvent.setup()
     render(<TaskTable />)
@@ -246,22 +319,26 @@ describe('TaskTable', () => {
     expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
   })
 
-  it('should disable Previous button on first page', () => {
+  it('should disable First and Previous buttons on first page', () => {
     render(<TaskTable />)
 
+    const firstButton = screen.getByLabelText('First page')
     const prevButton = screen.getByLabelText('Previous page')
+    expect(firstButton).toBeDisabled()
     expect(prevButton).toBeDisabled()
   })
 
-  it('should disable Next button on last page', async () => {
+  it('should disable Next and Last buttons on last page', async () => {
     const user = userEvent.setup()
     render(<TaskTable />)
 
     const nextButton = screen.getByLabelText('Next page')
+    const lastButton = screen.getByLabelText('Last page')
     await user.click(nextButton)
     await user.click(nextButton)
 
     expect(nextButton).toBeDisabled()
+    expect(lastButton).toBeDisabled()
   })
 
   it('should show delete dialog when delete is clicked', async () => {
