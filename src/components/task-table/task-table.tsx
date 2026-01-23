@@ -70,15 +70,98 @@ export function TaskTable({
   const utils = api.useUtils()
 
   const deleteMutation = api.todo.delete.useMutation({
-    onSuccess: () => {
+    onMutate: async (variables) => {
+      await utils.todo.getAll.cancel()
+
+      const deletedTask = todos.find((todo) => todo.id === variables.id)
+
+      if (!deletedTask) {
+        return { previousData: null }
+      }
+
+      const previousData = utils.todo.getAll.getData({
+        userId: selectedUserId ?? undefined,
+        status: selectedStatus,
+        page: currentPage,
+        pageSize: itemsPerPage,
+      })
+
+      if (previousData) {
+        utils.todo.getAll.setData(
+          {
+            userId: selectedUserId ?? undefined,
+            status: selectedStatus,
+            page: currentPage,
+            pageSize: itemsPerPage,
+          },
+          {
+            ...previousData,
+            todos: previousData.todos.filter((todo) => todo.id !== variables.id),
+            total: Math.max(0, previousData.total - 1),
+            totalPages: Math.ceil(
+              Math.max(0, previousData.total - 1) / previousData.pageSize,
+            ),
+          },
+        )
+      }
+
+      return { previousData, deletedTask }
+    },
+    onSuccess: (_data, variables, context) => {
       setDeletingTaskId(null)
       setShowDeleteDialog(false)
-      void utils.todo.getAll.invalidate()
+
+      const deletedTask = context?.deletedTask
+
+      if (deletedTask) {
+        void utils.todo.getAll.invalidate(undefined, {
+          predicate: (query) => {
+            const input = query.queryKey[1] as
+              | {
+                  userId?: number
+                  status?: 'all' | 'completed' | 'pending'
+                  page?: number
+                  pageSize?: number
+                }
+              | undefined
+
+            if (!input) return true
+
+            const matchesUserId =
+              !input.userId || input.userId === deletedTask.userId
+
+            const matchesStatus =
+              !input.status ||
+              input.status === 'all' ||
+              (input.status === 'completed' && deletedTask.completed) ||
+              (input.status === 'pending' && !deletedTask.completed)
+
+            return matchesUserId && matchesStatus
+          },
+        })
+      } else {
+        void utils.todo.getAll.invalidate()
+      }
+
+      void utils.todo.getById.invalidate({ id: variables.id })
       toast.success('Task deleted successfully')
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
       setDeletingTaskId(null)
       setShowDeleteDialog(false)
+
+      if (context?.previousData) {
+        utils.todo.getAll.setData(
+          {
+            userId: selectedUserId ?? undefined,
+            status: selectedStatus,
+            page: currentPage,
+            pageSize: itemsPerPage,
+          },
+          context.previousData,
+        )
+      }
+
       toast.error(`Failed to delete task: ${error.message}`)
     },
   })
@@ -335,7 +418,15 @@ export function TaskTable({
         )}
       </div>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog
+        open={showDeleteDialog}
+        onOpenChange={(open) => {
+          setShowDeleteDialog(open)
+          if (!open) {
+            setDeletingTaskId(null)
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Task</AlertDialogTitle>
