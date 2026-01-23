@@ -133,7 +133,7 @@ describe('TaskRow', () => {
     const editButton = screen.getByText('Edit')
     await user.click(editButton)
 
-    expect(mockOnEdit).toHaveBeenCalledWith(mockTask)
+    expect(mockOnEdit).toHaveBeenCalledWith(1)
     expect(mockOnEdit).toHaveBeenCalledTimes(1)
   })
 

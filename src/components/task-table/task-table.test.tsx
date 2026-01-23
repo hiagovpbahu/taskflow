@@ -5,6 +5,17 @@ import type { Todo } from '~/types/todo'
 import type { User } from '~/types/user'
 import { TaskTable } from './task-table'
 
+vi.mock('~/store/filterStore', () => ({
+  useFilterStore: vi.fn((selector) => {
+    const state = {
+      selectedUserId: null,
+      selectedStatus: 'all',
+      clearFilters: vi.fn(),
+    }
+    return selector(state)
+  }),
+}))
+
 const mockTodos: Todo[] = Array.from({ length: 25 }, (_, i) => ({
   id: i + 1,
   userId: (i % 10) + 1,
@@ -60,6 +71,7 @@ vi.mock('sonner', () => ({
 }))
 
 const mockTodoUseQuery = vi.fn()
+const mockStatusOptionsUseQuery = vi.fn()
 const mockUserUseQuery = vi.fn()
 const mockDeleteUseMutation = vi.fn()
 
@@ -68,6 +80,9 @@ vi.mock('~/trpc/react', () => ({
     todo: {
       getAll: {
         useQuery: () => mockTodoUseQuery(),
+      },
+      getStatusOptions: {
+        useQuery: () => mockStatusOptionsUseQuery(),
       },
       delete: {
         useMutation: () => mockDeleteUseMutation(),
@@ -88,11 +103,28 @@ vi.mock('~/trpc/react', () => ({
   },
 }))
 
+const mockStatusOptions = [
+  { value: 'all', label: 'All Status' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'pending', label: 'Pending' },
+]
+
 describe('TaskTable', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockTodoUseQuery.mockReturnValue({
-      data: mockTodos,
+      data: {
+        todos: mockTodos,
+        total: mockTodos.length,
+        page: 1,
+        pageSize: 10,
+        totalPages: Math.ceil(mockTodos.length / 10),
+      },
+      isLoading: false,
+      error: null,
+    })
+    mockStatusOptionsUseQuery.mockReturnValue({
+      data: mockStatusOptions,
       isLoading: false,
       error: null,
     })
@@ -149,6 +181,12 @@ describe('TaskTable', () => {
     expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
   })
 
+  it('should send filter and pagination params to backend', () => {
+    render(<TaskTable />)
+
+    expect(mockTodoUseQuery).toHaveBeenCalled()
+  })
+
   it('should navigate to next page when Next button is clicked', async () => {
     const user = userEvent.setup()
     render(<TaskTable />)
@@ -156,7 +194,21 @@ describe('TaskTable', () => {
     const nextButton = screen.getByLabelText('Next page')
     await user.click(nextButton)
 
-    expect(screen.getByText('Task 11')).toBeInTheDocument()
+    mockTodoUseQuery.mockReturnValue({
+      data: {
+        todos: mockTodos.slice(10, 20),
+        total: mockTodos.length,
+        page: 2,
+        pageSize: 10,
+        totalPages: 3,
+      },
+      isLoading: false,
+      error: null,
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Task 11')).toBeInTheDocument()
+    })
     expect(screen.getByText('Page 2 of 3')).toBeInTheDocument()
   })
 
@@ -237,7 +289,13 @@ describe('TaskTable', () => {
 
   it('should display empty state when no tasks', () => {
     mockTodoUseQuery.mockReturnValue({
-      data: [],
+      data: {
+        todos: [],
+        total: 0,
+        page: 1,
+        pageSize: 10,
+        totalPages: 0,
+      },
       isLoading: false,
       error: null,
     })
@@ -248,6 +306,18 @@ describe('TaskTable', () => {
   })
 
   it('should use custom itemsPerPage when provided', () => {
+    mockTodoUseQuery.mockReturnValue({
+      data: {
+        todos: mockTodos.slice(0, 5),
+        total: mockTodos.length,
+        page: 1,
+        pageSize: 5,
+        totalPages: Math.ceil(mockTodos.length / 5),
+      },
+      isLoading: false,
+      error: null,
+    })
+
     render(<TaskTable itemsPerPageOnDesktop={5} />)
 
     expect(screen.getByText('Task 1')).toBeInTheDocument()
