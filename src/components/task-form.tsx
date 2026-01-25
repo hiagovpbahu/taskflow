@@ -1,7 +1,6 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -26,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select'
+import { shouldIncludeTask } from '~/lib/taskUtils'
 import { api } from '~/trpc/react'
 import type { Todo } from '~/types/todo'
 
@@ -37,80 +37,195 @@ const taskSchema = z.object({
 
 type TaskFormValues = z.infer<typeof taskSchema>
 
-interface TaskFormProps {
-  readonly task?: Todo
+type QueryParams = {
+  readonly userId?: number | null
+  readonly status?: 'all' | 'completed' | 'pending'
 }
 
-export function TaskForm({ task }: TaskFormProps) {
-  const router = useRouter()
+interface TaskFormProps {
+  readonly task?: Todo
+  readonly onClose: () => void
+  readonly queryParams?: QueryParams
+}
+
+export function TaskForm({ task, onClose, queryParams = {} }: TaskFormProps) {
   const utils = api.useUtils()
   const isEditMode = task !== undefined
+  const queryInput = {
+    userId: queryParams.userId ?? undefined,
+    status: queryParams.status ?? 'all',
+  }
 
   const { data: users, isLoading: isLoadingUsers } = api.user.getAll.useQuery()
 
   const createMutation = api.todo.create.useMutation({
-    onSuccess: () => {
-      void utils.todo.getAll.invalidate()
-      toast.success('Task created successfully')
-      router.push('/')
+    onMutate: async (variables) => {
+      await utils.todo.getAll.cancel()
+
+      const currentData = utils.todo.getAll.getData(queryInput)
+      const maxId =
+        currentData?.todos && currentData.todos.length > 0
+          ? Math.max(...currentData.todos.map((todo) => todo.id))
+          : 0
+      const temporaryId = maxId > 0 ? maxId + 1 : Date.now()
+
+      const optimisticTask: Todo = {
+        id: temporaryId,
+        title: variables.title,
+        userId: variables.userId,
+        completed: variables.completed ?? false,
+      }
+
+      if (currentData && shouldIncludeTask(optimisticTask, queryParams)) {
+        utils.todo.getAll.setData(queryInput, {
+          ...currentData,
+          todos: [...currentData.todos, optimisticTask],
+          total: currentData.total + 1,
+        })
+      }
+
+      return { previousData: currentData, temporaryId }
     },
-    onError: (error) => {
+    onSuccess: (_data, variables, context) => {
+      const finalTask: Todo = {
+        id: _data.id,
+        title: variables.title,
+        userId: variables.userId,
+        completed: variables.completed ?? false,
+      }
+
+      if (context?.temporaryId) {
+        const currentData = utils.todo.getAll.getData(queryInput)
+        if (currentData && shouldIncludeTask(finalTask, queryParams)) {
+          const updatedTodos = currentData.todos.map((todo) =>
+            todo.id === context.temporaryId ? finalTask : todo,
+          )
+          utils.todo.getAll.setData(queryInput, {
+            ...currentData,
+            todos: updatedTodos,
+          })
+        }
+      }
+
+      utils.todo.getById.setData({ id: finalTask.id }, finalTask)
+      toast.success('Task created successfully')
+      onClose()
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previousData) {
+        utils.todo.getAll.setData(queryInput, context.previousData)
+      }
       toast.error(`Failed to create task: ${error.message}`)
     },
   })
 
   const updateMutation = api.todo.update.useMutation({
-    onSuccess: (_data, variables) => {
+    onMutate: async (variables) => {
+      if (!task) {
+        return { previousData: null, previousGetByIdData: null }
+      }
+
+      await utils.todo.getAll.cancel()
+
+      const optimisticTask: Todo = {
+        ...task,
+        ...(variables.title && { title: variables.title }),
+        ...(variables.userId !== undefined && { userId: variables.userId }),
+        ...(variables.completed !== undefined && {
+          completed: variables.completed,
+        }),
+      }
+
+      const previousData = utils.todo.getAll.getData(queryInput)
+      const previousGetByIdData = utils.todo.getById.getData({ id: task.id })
+
+      if (previousGetByIdData) {
+        utils.todo.getById.setData({ id: task.id }, optimisticTask)
+      }
+
+      if (!previousData) {
+        return { previousData, previousGetByIdData }
+      }
+
+      const taskExists = previousData.todos.some((todo) => todo.id === task.id)
+      const originalMatches = shouldIncludeTask(task, queryParams)
+      const newMatches = shouldIncludeTask(optimisticTask, queryParams)
+
+      if (newMatches && taskExists) {
+        const updatedTodos = previousData.todos.map((todo) =>
+          todo.id === task.id ? optimisticTask : todo,
+        )
+        utils.todo.getAll.setData(queryInput, {
+          ...previousData,
+          todos: updatedTodos,
+        })
+        return { previousData, previousGetByIdData }
+      }
+
+      if (newMatches) {
+        utils.todo.getAll.setData(queryInput, {
+          ...previousData,
+          todos: [...previousData.todos, optimisticTask],
+          total: previousData.total + 1,
+        })
+        return { previousData, previousGetByIdData }
+      }
+
+      if (originalMatches && taskExists) {
+        const updatedTodos = previousData.todos.filter(
+          (todo) => todo.id !== task.id,
+        )
+        utils.todo.getAll.setData(queryInput, {
+          ...previousData,
+          todos: updatedTodos,
+          total: Math.max(0, previousData.total - 1),
+        })
+      }
+
+      return { previousData, previousGetByIdData }
+    },
+    onSuccess: (_data, variables, _context) => {
       if (!task) {
         return
       }
 
-      const originalUserId = task.userId
-      const originalCompleted = task.completed
-      const newUserId = variables.userId ?? originalUserId
-      const newCompleted = variables.completed ?? originalCompleted
+      const finalTask: Todo = {
+        id: task.id,
+        title: variables.title || task.title,
+        userId: variables.userId ?? task.userId,
+        completed: variables.completed ?? task.completed,
+      }
 
-      void utils.todo.getAll.invalidate(undefined, {
-        predicate: (query) => {
-          const input = query.queryKey[1] as
-            | {
-                userId?: number
-                status?: 'all' | 'completed' | 'pending'
-                page?: number
-                pageSize?: number
-              }
-            | undefined
+      const currentData = utils.todo.getAll.getData(queryInput)
+      if (currentData) {
+        const taskIndex = currentData.todos.findIndex(
+          (todo) => todo.id === task.id,
+        )
 
-          if (!input) return true
-
-          const matchesOriginalUserId =
-            !input.userId || input.userId === originalUserId
-          const matchesNewUserId = !input.userId || input.userId === newUserId
-
-          const matchesOriginalStatus =
-            !input.status ||
-            input.status === 'all' ||
-            (input.status === 'completed' && originalCompleted) ||
-            (input.status === 'pending' && !originalCompleted)
-
-          const matchesNewStatus =
-            !input.status ||
-            input.status === 'all' ||
-            (input.status === 'completed' && newCompleted) ||
-            (input.status === 'pending' && !newCompleted)
-
-          return (
-            (matchesOriginalUserId && matchesOriginalStatus) ||
-            (matchesNewUserId && matchesNewStatus)
+        if (taskIndex !== -1) {
+          const updatedTodos = currentData.todos.map((todo) =>
+            todo.id === task.id ? finalTask : todo,
           )
-        },
-      })
+          utils.todo.getAll.setData(queryInput, {
+            ...currentData,
+            todos: updatedTodos,
+          })
+        }
+      }
 
-      void utils.todo.getById.invalidate({ id: task.id })
+      utils.todo.getById.setData({ id: task.id }, finalTask)
       toast.success('Task updated successfully')
-      router.push('/')
+      onClose()
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      if (context?.previousData) {
+        utils.todo.getAll.setData(queryInput, context.previousData)
+      }
+
+      if (context?.previousGetByIdData && task) {
+        utils.todo.getById.setData({ id: task.id }, context.previousGetByIdData)
+      }
+
       toast.error(`Failed to update task: ${error.message}`)
     },
   })
@@ -264,7 +379,7 @@ export function TaskForm({ task }: TaskFormProps) {
           <Button
             type='button'
             variant='outline'
-            onClick={() => router.push('/')}
+            onClick={onClose}
             disabled={isSubmitting}
             className='w-full sm:w-auto'
           >

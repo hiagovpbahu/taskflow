@@ -1,10 +1,9 @@
 'use client'
 
-import { AlertCircle, ChevronFirst, ChevronLast, X } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useMediaQuery } from 'react-responsive'
+import { AlertCircle, Plus, X } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { TaskForm } from '~/components/task-form'
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert'
 import {
   AlertDialog,
@@ -18,6 +17,13 @@ import {
 } from '~/components/ui/alert-dialog'
 import { Button } from '~/components/ui/button'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '~/components/ui/dialog'
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,27 +33,18 @@ import {
 } from '~/components/ui/table'
 import { useFilterStore } from '~/store/filterStore'
 import { api } from '~/trpc/react'
+import type { Todo } from '~/types/todo'
 import { ActiveFilters } from './active-filters'
 import { StatusFilter } from './status-filter'
 import { TaskRow } from './task-row'
 import { TaskTableSkeleton } from './task-table-skeleton'
 import { UserFilter } from './user-filter'
 
-interface TaskTableProps {
-  itemsPerPageOnDesktop?: number
-  itemsPerPageOnMobile?: number
-}
-
-export function TaskTable({
-  itemsPerPageOnMobile = 5,
-  itemsPerPageOnDesktop = 10,
-}: Readonly<TaskTableProps>) {
-  const router = useRouter()
-  const isMobile = useMediaQuery({ query: '(max-width: 640px)' })
-  const itemsPerPage = isMobile ? itemsPerPageOnMobile : itemsPerPageOnDesktop
-  const [currentPage, setCurrentPage] = useState(1)
+export function TaskTable() {
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showTaskDialog, setShowTaskDialog] = useState(false)
+  const [editingTask, setEditingTask] = useState<Todo | undefined>(undefined)
 
   const selectedUserId = useFilterStore((state) => state.selectedUserId)
   const selectedStatus = useFilterStore((state) => state.selectedStatus)
@@ -60,8 +57,6 @@ export function TaskTable({
   } = api.todo.getAll.useQuery({
     userId: selectedUserId ?? undefined,
     status: selectedStatus,
-    page: currentPage,
-    pageSize: itemsPerPage,
   })
 
   const { data: users } = api.user.getAll.useQuery()
@@ -82,8 +77,6 @@ export function TaskTable({
       const previousData = utils.todo.getAll.getData({
         userId: selectedUserId ?? undefined,
         status: selectedStatus,
-        page: currentPage,
-        pageSize: itemsPerPage,
       })
 
       if (previousData) {
@@ -91,58 +84,22 @@ export function TaskTable({
           {
             userId: selectedUserId ?? undefined,
             status: selectedStatus,
-            page: currentPage,
-            pageSize: itemsPerPage,
           },
           {
             ...previousData,
-            todos: previousData.todos.filter((todo) => todo.id !== variables.id),
-            total: Math.max(0, previousData.total - 1),
-            totalPages: Math.ceil(
-              Math.max(0, previousData.total - 1) / previousData.pageSize,
+            todos: previousData.todos.filter(
+              (todo) => todo.id !== variables.id,
             ),
+            total: Math.max(0, previousData.total - 1),
           },
         )
       }
 
       return { previousData, deletedTask }
     },
-    onSuccess: (_data, variables, context) => {
+    onSuccess: (_data, variables) => {
       setDeletingTaskId(null)
       setShowDeleteDialog(false)
-
-      const deletedTask = context?.deletedTask
-
-      if (deletedTask) {
-        void utils.todo.getAll.invalidate(undefined, {
-          predicate: (query) => {
-            const input = query.queryKey[1] as
-              | {
-                  userId?: number
-                  status?: 'all' | 'completed' | 'pending'
-                  page?: number
-                  pageSize?: number
-                }
-              | undefined
-
-            if (!input) return true
-
-            const matchesUserId =
-              !input.userId || input.userId === deletedTask.userId
-
-            const matchesStatus =
-              !input.status ||
-              input.status === 'all' ||
-              (input.status === 'completed' && deletedTask.completed) ||
-              (input.status === 'pending' && !deletedTask.completed)
-
-            return matchesUserId && matchesStatus
-          },
-        })
-      } else {
-        void utils.todo.getAll.invalidate()
-      }
-
       void utils.todo.getById.invalidate({ id: variables.id })
       toast.success('Task deleted successfully')
     },
@@ -155,8 +112,6 @@ export function TaskTable({
           {
             userId: selectedUserId ?? undefined,
             status: selectedStatus,
-            page: currentPage,
-            pageSize: itemsPerPage,
           },
           context.previousData,
         )
@@ -173,8 +128,6 @@ export function TaskTable({
       const previousData = utils.todo.getAll.getData({
         userId: selectedUserId ?? undefined,
         status: selectedStatus,
-        page: currentPage,
-        pageSize: itemsPerPage,
       })
 
       if (previousData && completed !== undefined) {
@@ -182,8 +135,6 @@ export function TaskTable({
           {
             userId: selectedUserId ?? undefined,
             status: selectedStatus,
-            page: currentPage,
-            pageSize: itemsPerPage,
           },
           {
             ...previousData,
@@ -202,8 +153,6 @@ export function TaskTable({
           {
             userId: selectedUserId ?? undefined,
             status: selectedStatus,
-            page: currentPage,
-            pageSize: itemsPerPage,
           },
           context.previousData,
         )
@@ -215,8 +164,6 @@ export function TaskTable({
   const [updatingTaskId, setUpdatingTaskId] = useState<number | null>(null)
 
   const todos = todosData?.todos ?? []
-  const totalTodos = todosData?.total ?? 0
-  const totalPages = todosData?.totalPages ?? 0
 
   const getUserById = useMemo(() => {
     const userMap = new Map(users?.map((user) => [user.id, user]))
@@ -225,10 +172,24 @@ export function TaskTable({
 
   const handleEdit = useCallback(
     (taskId: number) => {
-      router.push(`/edit/${taskId}`)
+      const taskToEdit = todos.find((todo) => todo.id === taskId)
+      if (taskToEdit) {
+        setEditingTask(taskToEdit)
+        setShowTaskDialog(true)
+      }
     },
-    [router],
+    [todos],
   )
+
+  const handleCreate = useCallback(() => {
+    setEditingTask(undefined)
+    setShowTaskDialog(true)
+  }, [])
+
+  const handleCloseTaskDialog = useCallback(() => {
+    setShowTaskDialog(false)
+    setEditingTask(undefined)
+  }, [])
 
   const handleDeleteClick = useCallback((taskId: number) => {
     setDeletingTaskId(taskId)
@@ -258,12 +219,6 @@ export function TaskTable({
 
   const hasActiveFilters = selectedUserId !== null || selectedStatus !== 'all'
 
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(1)
-    }
-  }, [currentPage, totalPages])
-
   if (error) {
     return (
       <Alert className='mt-4 border-destructive'>
@@ -278,6 +233,19 @@ export function TaskTable({
 
   return (
     <>
+      <div className='flex flex-col gap-4 mt-6 sm:flex-row sm:justify-between sm:items-center'>
+        <h1 className='text-2xl font-semibold'>Task List View</h1>
+        <Button
+          type='button'
+          onClick={handleCreate}
+          className='bg-foreground text-background hover:bg-foreground/90 rounded-lg px-4 py-2 gap-2 font-medium'
+        >
+          <div className='flex h-5 w-5 items-center justify-center rounded-full bg-background'>
+            <Plus className='h-3 w-3 text-foreground stroke-[2.5]' />
+          </div>
+          Quick Create
+        </Button>
+      </div>
       <div className='py-6 space-y-4'>
         <div className='flex flex-col gap-4'>
           <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
@@ -329,7 +297,7 @@ export function TaskTable({
                 </TableRow>
               </TableHeader>
               {isLoading ? (
-                <TaskTableSkeleton rows={itemsPerPage} />
+                <TaskTableSkeleton rows={10} />
               ) : (
                 <TableBody>
                   {todos.length === 0 ? (
@@ -357,65 +325,6 @@ export function TaskTable({
             </Table>
           </div>
         </div>
-
-        {!isLoading && todos && todos.length > 0 && (
-          <div className='flex flex-col gap-4 px-2 sm:flex-row sm:items-center sm:justify-between'>
-            <div className='text-sm text-muted-foreground'>
-              Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-              {Math.min(currentPage * itemsPerPage, totalTodos)} of {totalTodos}{' '}
-              task{totalTodos === 1 ? '' : 's'}
-            </div>
-            <div className='flex items-center justify-center gap-2'>
-              <Button
-                type='button'
-                variant='outline'
-                size='sm'
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                aria-label='First page'
-              >
-                <ChevronFirst className='h-4 w-4' />
-                <span className='sr-only sm:not-sr-only sm:ml-1'>First</span>
-              </Button>
-              <Button
-                type='button'
-                variant='outline'
-                size='sm'
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                aria-label='Previous page'
-              >
-                Previous
-              </Button>
-              <span className='text-sm text-muted-foreground'>
-                Page {currentPage} of {totalPages}
-              </span>
-              <Button
-                type='button'
-                variant='outline'
-                size='sm'
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                }
-                disabled={currentPage === totalPages}
-                aria-label='Next page'
-              >
-                Next
-              </Button>
-              <Button
-                type='button'
-                variant='outline'
-                size='sm'
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-                aria-label='Last page'
-              >
-                <span className='sr-only sm:not-sr-only sm:mr-1'>Last</span>
-                <ChevronLast className='h-4 w-4' />
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
 
       <AlertDialog
@@ -449,6 +358,36 @@ export function TaskTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={showTaskDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseTaskDialog()
+          }
+        }}
+      >
+        <DialogContent className='max-w-2xl max-h-[90vh] overflow-y-auto'>
+          <DialogHeader>
+            <DialogTitle>
+              {editingTask ? 'Edit Task' : 'Create Task'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingTask
+                ? 'Update the task details below.'
+                : 'Fill in the details to create a new task.'}
+            </DialogDescription>
+          </DialogHeader>
+          <TaskForm
+            task={editingTask}
+            onClose={handleCloseTaskDialog}
+            queryParams={{
+              userId: selectedUserId,
+              status: selectedStatus,
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
