@@ -8,8 +8,6 @@ const todoFilterSchema = z
   .object({
     userId: z.number().nullable().optional(),
     status: z.enum(['all', 'completed', 'pending']).optional(),
-    page: z.number().min(1).default(1),
-    pageSize: z.number().min(1).max(100).default(10),
   })
   .optional()
 
@@ -30,9 +28,6 @@ export const todoRouter = createTRPCRouter({
     }): Promise<{
       todos: Todo[]
       total: number
-      page: number
-      pageSize: number
-      totalPages: number
     }> => {
       const todos = await fetchJsonPlaceholder<Todo[]>('/todos')
 
@@ -56,19 +51,9 @@ export const todoRouter = createTRPCRouter({
         })
       }
 
-      const page = input?.page ?? 1
-      const pageSize = input?.pageSize ?? 10
-      const startIndex = (page - 1) * pageSize
-      const endIndex = startIndex + pageSize
-
-      const paginatedTodos = filteredTodos.slice(startIndex, endIndex)
-
       return {
-        todos: paginatedTodos,
+        todos: filteredTodos,
         total: filteredTodos.length,
-        page,
-        pageSize,
-        totalPages: Math.ceil(filteredTodos.length / pageSize),
       }
     },
   ),
