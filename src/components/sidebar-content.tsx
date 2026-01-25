@@ -1,7 +1,7 @@
 'use client'
 
 import type { LucideIcon } from 'lucide-react'
-import { Home, PlusCircle } from 'lucide-react'
+import { Home } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '~/lib/utils'
@@ -15,7 +15,6 @@ interface NavigationItem {
 
 const navigation: NavigationItem[] = [
   { name: 'Task List', href: '/', icon: Home },
-  { name: 'Create Task', href: '/create', icon: PlusCircle },
 ]
 
 export default function SidebarContent() {
