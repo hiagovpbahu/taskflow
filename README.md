@@ -21,6 +21,7 @@ support
 
 ## Key Technical Decisions
 
+- Currently we have an issue that when created 2 or more Todo, it repeats the ID. That is because we are actually substituting the ID with the one received from the request, and it would be correct in a normal environment where the Todo is actually created and not fake, thats why the decision to keep it like this was made;
 - Used tRPC with @tanstack/react-query: It adds API type-safety and makes the data flow much cleaner;
 - Used biomejs instead of Prettier/Eslint: eslint extension was behaving differently than it used to so took the opportunity to use biomejs in this project, its fast and it combines both prettier and eslint in an easy to configure library. It's speed is really worth it;
 - Removed pagination and modal-based create/edit: I understood that the idea for the optimistic updates was to see the create/edit on the list without fetching, so I opted for that since when we create an item it goes to the last page, and sometimes we dont have a cache to be updated if we didnt go to the last pages, so this works better overall for the idea of this project;
