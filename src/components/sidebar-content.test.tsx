@@ -30,7 +30,6 @@ describe('SidebarContent', () => {
     render(<SidebarContent />)
 
     expect(screen.getByText('Task List')).toBeInTheDocument()
-    expect(screen.getByText('Create Task')).toBeInTheDocument()
   })
 
   it('should mark active navigation item with aria-current="page"', () => {
@@ -41,24 +40,6 @@ describe('SidebarContent', () => {
     expect(taskListLink).toHaveAttribute('aria-current', 'page')
   })
 
-  it('should not mark inactive navigation items with aria-current', () => {
-    vi.mocked(usePathname).mockReturnValue('/')
-    render(<SidebarContent />)
-
-    const createTaskLink = screen.getByRole('link', { name: /create task/i })
-    expect(createTaskLink).not.toHaveAttribute('aria-current')
-  })
-
-  it('should mark Create Task as active when pathname is /create', () => {
-    vi.mocked(usePathname).mockReturnValue('/create')
-    render(<SidebarContent />)
-
-    const createTaskLink = screen.getByRole('link', { name: /create task/i })
-    expect(createTaskLink).toHaveAttribute('aria-current', 'page')
-
-    const taskListLink = screen.getByRole('link', { name: /task list/i })
-    expect(taskListLink).not.toHaveAttribute('aria-current')
-  })
 
   it('should apply active styles to active navigation item', () => {
     vi.mocked(usePathname).mockReturnValue('/')
@@ -68,16 +49,6 @@ describe('SidebarContent', () => {
     expect(taskListLink).toHaveClass('bg-accent', 'text-accent-foreground')
   })
 
-  it('should apply inactive styles to inactive navigation items', () => {
-    vi.mocked(usePathname).mockReturnValue('/')
-    render(<SidebarContent />)
-
-    const createTaskLink = screen.getByRole('link', { name: /create task/i })
-    expect(createTaskLink).toHaveClass(
-      'text-muted-foreground',
-      'hover:bg-accent',
-    )
-  })
 
   it('should have proper navigation landmark', () => {
     render(<SidebarContent />)
@@ -91,9 +62,6 @@ describe('SidebarContent', () => {
 
     const taskListLink = screen.getByRole('link', { name: /task list/i })
     expect(taskListLink).toHaveAttribute('href', '/')
-
-    const createTaskLink = screen.getByRole('link', { name: /create task/i })
-    expect(createTaskLink).toHaveAttribute('href', '/create')
   })
 
   it('should hide icons from screen readers', () => {

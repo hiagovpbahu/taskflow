@@ -49,19 +49,8 @@ const mockUsers: User[] = [
   },
 ]
 
-const mockPush = vi.fn()
 const mockInvalidate = vi.fn()
 const mockMutate = vi.fn()
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: mockPush,
-  }),
-}))
-
-vi.mock('react-responsive', () => ({
-  useMediaQuery: () => false,
-}))
 
 vi.mock('sonner', () => ({
   toast: {
@@ -123,9 +112,6 @@ describe('TaskTable', () => {
       data: {
         todos: mockTodos,
         total: mockTodos.length,
-        page: 1,
-        pageSize: 10,
-        totalPages: Math.ceil(mockTodos.length / 10),
       },
       isLoading: false,
       error: null,
@@ -178,11 +164,11 @@ describe('TaskTable', () => {
     ).toBeInTheDocument()
   })
 
-  it('should render all tasks on current page', () => {
+  it('should render all tasks', () => {
     render(<TaskTable />)
 
     expect(screen.getByText('Task 1')).toBeInTheDocument()
-    expect(screen.getByText('Task 10')).toBeInTheDocument()
+    expect(screen.getByText('Task 25')).toBeInTheDocument()
   })
 
   it('should display responsive column headers', () => {
@@ -194,151 +180,10 @@ describe('TaskTable', () => {
     expect(screen.getByText('Actions')).toBeInTheDocument()
   })
 
-  it('should display pagination information', () => {
-    render(<TaskTable />)
-
-    expect(screen.getByText(/Showing 1 to 10 of 25 task/)).toBeInTheDocument()
-    expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
-  })
-
-  it('should send filter and pagination params to backend', () => {
+  it('should send filter params to backend', () => {
     render(<TaskTable />)
 
     expect(mockTodoUseQuery).toHaveBeenCalled()
-  })
-
-  it('should navigate to first page when First button is clicked', async () => {
-    const user = userEvent.setup()
-    render(<TaskTable />)
-
-    const nextButton = screen.getByLabelText('Next page')
-    await user.click(nextButton)
-
-    mockTodoUseQuery.mockReturnValue({
-      data: {
-        todos: mockTodos.slice(10, 20),
-        total: mockTodos.length,
-        page: 2,
-        pageSize: 10,
-        totalPages: 3,
-      },
-      isLoading: false,
-      error: null,
-    })
-
-    await waitFor(
-      () => {
-        expect(screen.getByText('Page 2 of 3')).toBeInTheDocument()
-      },
-      { timeout: 3000 },
-    )
-
-    const firstButton = screen.getByLabelText('First page')
-    await user.click(firstButton)
-
-    mockTodoUseQuery.mockReturnValue({
-      data: {
-        todos: mockTodos.slice(0, 10),
-        total: mockTodos.length,
-        page: 1,
-        pageSize: 10,
-        totalPages: 3,
-      },
-      isLoading: false,
-      error: null,
-    })
-
-    await waitFor(
-      () => {
-        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
-      },
-      { timeout: 3000 },
-    )
-  })
-
-  it('should navigate to last page when Last button is clicked', async () => {
-    const user = userEvent.setup()
-    render(<TaskTable />)
-
-    const lastButton = screen.getByLabelText('Last page')
-    await user.click(lastButton)
-
-    mockTodoUseQuery.mockReturnValue({
-      data: {
-        todos: mockTodos.slice(20, 25),
-        total: mockTodos.length,
-        page: 3,
-        pageSize: 10,
-        totalPages: 3,
-      },
-      isLoading: false,
-      error: null,
-    })
-
-    await waitFor(() => {
-      expect(screen.getByText('Page 3 of 3')).toBeInTheDocument()
-    })
-  })
-
-  it('should navigate to next page when Next button is clicked', async () => {
-    const user = userEvent.setup()
-    render(<TaskTable />)
-
-    const nextButton = screen.getByLabelText('Next page')
-    await user.click(nextButton)
-
-    mockTodoUseQuery.mockReturnValue({
-      data: {
-        todos: mockTodos.slice(10, 20),
-        total: mockTodos.length,
-        page: 2,
-        pageSize: 10,
-        totalPages: 3,
-      },
-      isLoading: false,
-      error: null,
-    })
-
-    await waitFor(() => {
-      expect(screen.getByText('Task 11')).toBeInTheDocument()
-    })
-    expect(screen.getByText('Page 2 of 3')).toBeInTheDocument()
-  })
-
-  it('should navigate to previous page when Previous button is clicked', async () => {
-    const user = userEvent.setup()
-    render(<TaskTable />)
-
-    const nextButton = screen.getByLabelText('Next page')
-    await user.click(nextButton)
-
-    const prevButton = screen.getByLabelText('Previous page')
-    await user.click(prevButton)
-
-    expect(screen.getByText('Task 1')).toBeInTheDocument()
-    expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
-  })
-
-  it('should disable First and Previous buttons on first page', () => {
-    render(<TaskTable />)
-
-    const firstButton = screen.getByLabelText('First page')
-    const prevButton = screen.getByLabelText('Previous page')
-    expect(firstButton).toBeDisabled()
-    expect(prevButton).toBeDisabled()
-  })
-
-  it('should disable Next and Last buttons on last page', async () => {
-    const user = userEvent.setup()
-    render(<TaskTable />)
-
-    const nextButton = screen.getByLabelText('Next page')
-    const lastButton = screen.getByLabelText('Last page')
-    await user.click(nextButton)
-    await user.click(nextButton)
-
-    expect(nextButton).toBeDisabled()
-    expect(lastButton).toBeDisabled()
   })
 
   it('should show delete dialog when delete is clicked', async () => {
@@ -389,9 +234,6 @@ describe('TaskTable', () => {
       data: {
         todos: [],
         total: 0,
-        page: 1,
-        pageSize: 10,
-        totalPages: 0,
       },
       isLoading: false,
       error: null,
@@ -401,25 +243,5 @@ describe('TaskTable', () => {
 
     const emptyCell = screen.getByText('No tasks found').closest('td')
     expect(emptyCell).toHaveAttribute('colSpan', '6')
-  })
-
-  it('should use custom itemsPerPage when provided', () => {
-    mockTodoUseQuery.mockReturnValue({
-      data: {
-        todos: mockTodos.slice(0, 5),
-        total: mockTodos.length,
-        page: 1,
-        pageSize: 5,
-        totalPages: Math.ceil(mockTodos.length / 5),
-      },
-      isLoading: false,
-      error: null,
-    })
-
-    render(<TaskTable itemsPerPageOnDesktop={5} />)
-
-    expect(screen.getByText('Task 1')).toBeInTheDocument()
-    expect(screen.getByText('Task 5')).toBeInTheDocument()
-    expect(screen.queryByText('Task 6')).not.toBeInTheDocument()
   })
 })
