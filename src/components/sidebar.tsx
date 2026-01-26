@@ -5,7 +5,13 @@ import { Menu } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '~/components/theme-toggle'
 import { Button } from '~/components/ui/button'
-import { Sheet, SheetContent, SheetTrigger } from '~/components/ui/sheet'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from '~/components/ui/sheet'
 import SidebarContent from './sidebar-content'
 
 export function Sidebar() {
@@ -35,6 +41,10 @@ export function Sidebar() {
             id='mobile-navigation'
             aria-label='Main navigation'
           >
+            <SheetTitle className='sr-only'>Navigation Menu</SheetTitle>
+            <SheetDescription className='sr-only'>
+              Main navigation menu for TaskFlow application
+            </SheetDescription>
             <SidebarContent />
           </SheetContent>
         </Sheet>
