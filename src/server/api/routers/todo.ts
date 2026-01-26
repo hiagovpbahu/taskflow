@@ -1,3 +1,4 @@
+import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 
 import { fetchJsonPlaceholder } from '~/lib/jsonPlaceholder'
@@ -90,6 +91,19 @@ export const todoRouter = createTRPCRouter({
     )
     .mutation(async ({ input }): Promise<Todo> => {
       const { id, ...updateData } = input
+
+      try {
+        await fetchJsonPlaceholder<Todo>(`/todos/${id}`)
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('404')) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Task to edit not found. Please make sure that the task exist and try again.`,
+          })
+        }
+        throw error
+      }
+
       return fetchJsonPlaceholder<Todo>(`/todos/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ id, ...updateData }),
