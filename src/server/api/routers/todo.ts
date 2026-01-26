@@ -5,13 +5,6 @@ import { fetchJsonPlaceholder } from '~/lib/jsonPlaceholder'
 import { createTRPCRouter, publicProcedure } from '~/server/api/trpc'
 import type { Todo } from '~/types/todo'
 
-const todoFilterSchema = z
-  .object({
-    userId: z.number().nullable().optional(),
-    status: z.enum(['all', 'completed', 'pending']).optional(),
-  })
-  .optional()
-
 export const todoRouter = createTRPCRouter({
   getStatusOptions: publicProcedure.query(
     async (): Promise<Array<{ value: string; label: string }>> => {
@@ -23,38 +16,16 @@ export const todoRouter = createTRPCRouter({
     },
   ),
 
-  getAll: publicProcedure.input(todoFilterSchema).query(
-    async ({
-      input,
-    }): Promise<{
+  getAll: publicProcedure.query(
+    async (): Promise<{
       todos: Todo[]
       total: number
     }> => {
       const todos = await fetchJsonPlaceholder<Todo[]>('/todos')
 
-      let filteredTodos = todos
-
-      if (input?.userId !== null && input?.userId !== undefined) {
-        filteredTodos = filteredTodos.filter(
-          (todo) => todo.userId === input.userId,
-        )
-      }
-
-      if (input?.status && input.status !== 'all') {
-        filteredTodos = filteredTodos.filter((todo) => {
-          if (input.status === 'completed') {
-            return todo.completed
-          }
-          if (input.status === 'pending') {
-            return !todo.completed
-          }
-          return true
-        })
-      }
-
       return {
-        todos: filteredTodos,
-        total: filteredTodos.length,
+        todos,
+        total: todos.length,
       }
     },
   ),
