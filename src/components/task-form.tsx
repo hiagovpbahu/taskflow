@@ -25,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select'
-import { shouldIncludeTask } from '~/lib/taskUtils'
 import { api } from '~/trpc/react'
 import type { Todo } from '~/types/todo'
 
@@ -37,32 +36,22 @@ const taskSchema = z.object({
 
 type TaskFormValues = z.infer<typeof taskSchema>
 
-type QueryParams = {
-  readonly userId?: number | null
-  readonly status?: 'all' | 'completed' | 'pending'
-}
-
 interface TaskFormProps {
   readonly task?: Todo
   readonly onClose: () => void
-  readonly queryParams?: QueryParams
 }
 
-export function TaskForm({ task, onClose, queryParams = {} }: TaskFormProps) {
+export function TaskForm({ task, onClose }: TaskFormProps) {
   const utils = api.useUtils()
   const isEditMode = task !== undefined
-  const queryInput = {
-    userId: queryParams.userId ?? undefined,
-    status: queryParams.status ?? 'all',
-  }
 
   const { data: users, isLoading: isLoadingUsers } = api.user.getAll.useQuery()
 
   const createMutation = api.todo.create.useMutation({
     onMutate: async (variables) => {
-      await utils.todo.getAll.cancel()
+      await utils.todo.getAll.cancel(undefined)
 
-      const currentData = utils.todo.getAll.getData(queryInput)
+      const currentData = utils.todo.getAll.getData(undefined)
       const maxId =
         currentData?.todos && currentData.todos.length > 0
           ? Math.max(...currentData.todos.map((todo) => todo.id))
@@ -76,8 +65,8 @@ export function TaskForm({ task, onClose, queryParams = {} }: TaskFormProps) {
         completed: variables.completed ?? false,
       }
 
-      if (currentData && shouldIncludeTask(optimisticTask, queryParams)) {
-        utils.todo.getAll.setData(queryInput, {
+      if (currentData) {
+        utils.todo.getAll.setData(undefined, {
           ...currentData,
           todos: [...currentData.todos, optimisticTask],
           total: currentData.total + 1,
@@ -95,12 +84,12 @@ export function TaskForm({ task, onClose, queryParams = {} }: TaskFormProps) {
       }
 
       if (context?.temporaryId) {
-        const currentData = utils.todo.getAll.getData(queryInput)
-        if (currentData && shouldIncludeTask(finalTask, queryParams)) {
+        const currentData = utils.todo.getAll.getData(undefined)
+        if (currentData) {
           const updatedTodos = currentData.todos.map((todo) =>
             todo.id === context.temporaryId ? finalTask : todo,
           )
-          utils.todo.getAll.setData(queryInput, {
+          utils.todo.getAll.setData(undefined, {
             ...currentData,
             todos: updatedTodos,
           })
@@ -113,7 +102,7 @@ export function TaskForm({ task, onClose, queryParams = {} }: TaskFormProps) {
     },
     onError: (error, _variables, context) => {
       if (context?.previousData) {
-        utils.todo.getAll.setData(queryInput, context.previousData)
+        utils.todo.getAll.setData(undefined, context.previousData)
       }
       toast.error(`Failed to create task: ${error.message}`)
     },
@@ -125,7 +114,7 @@ export function TaskForm({ task, onClose, queryParams = {} }: TaskFormProps) {
         return { previousData: null, previousGetByIdData: null }
       }
 
-      await utils.todo.getAll.cancel()
+      await utils.todo.getAll.cancel(undefined)
 
       const optimisticTask: Todo = {
         ...task,
@@ -136,50 +125,26 @@ export function TaskForm({ task, onClose, queryParams = {} }: TaskFormProps) {
         }),
       }
 
-      const previousData = utils.todo.getAll.getData(queryInput)
+      const previousData = utils.todo.getAll.getData()
       const previousGetByIdData = utils.todo.getById.getData({ id: task.id })
 
       if (previousGetByIdData) {
         utils.todo.getById.setData({ id: task.id }, optimisticTask)
       }
 
-      if (!previousData) {
-        return { previousData, previousGetByIdData }
-      }
-
-      const taskExists = previousData.todos.some((todo) => todo.id === task.id)
-      const originalMatches = shouldIncludeTask(task, queryParams)
-      const newMatches = shouldIncludeTask(optimisticTask, queryParams)
-
-      if (newMatches && taskExists) {
-        const updatedTodos = previousData.todos.map((todo) =>
-          todo.id === task.id ? optimisticTask : todo,
+      if (previousData) {
+        const taskIndex = previousData.todos.findIndex(
+          (todo) => todo.id === task.id,
         )
-        utils.todo.getAll.setData(queryInput, {
-          ...previousData,
-          todos: updatedTodos,
-        })
-        return { previousData, previousGetByIdData }
-      }
 
-      if (newMatches) {
-        utils.todo.getAll.setData(queryInput, {
-          ...previousData,
-          todos: [...previousData.todos, optimisticTask],
-          total: previousData.total + 1,
-        })
-        return { previousData, previousGetByIdData }
-      }
-
-      if (originalMatches && taskExists) {
-        const updatedTodos = previousData.todos.filter(
-          (todo) => todo.id !== task.id,
-        )
-        utils.todo.getAll.setData(queryInput, {
-          ...previousData,
-          todos: updatedTodos,
-          total: Math.max(0, previousData.total - 1),
-        })
+        if (taskIndex !== -1) {
+          utils.todo.getAll.setData(undefined, {
+            ...previousData,
+            todos: previousData.todos.map((todo) =>
+              todo.id === task.id ? optimisticTask : todo,
+            ),
+          })
+        }
       }
 
       return { previousData, previousGetByIdData }
@@ -196,19 +161,18 @@ export function TaskForm({ task, onClose, queryParams = {} }: TaskFormProps) {
         completed: variables.completed ?? task.completed,
       }
 
-      const currentData = utils.todo.getAll.getData(queryInput)
+      const currentData = utils.todo.getAll.getData(undefined)
       if (currentData) {
         const taskIndex = currentData.todos.findIndex(
           (todo) => todo.id === task.id,
         )
 
         if (taskIndex !== -1) {
-          const updatedTodos = currentData.todos.map((todo) =>
-            todo.id === task.id ? finalTask : todo,
-          )
-          utils.todo.getAll.setData(queryInput, {
+          utils.todo.getAll.setData(undefined, {
             ...currentData,
-            todos: updatedTodos,
+            todos: currentData.todos.map((todo) =>
+              todo.id === task.id ? finalTask : todo,
+            ),
           })
         }
       }
@@ -219,7 +183,7 @@ export function TaskForm({ task, onClose, queryParams = {} }: TaskFormProps) {
     },
     onError: (error, _variables, context) => {
       if (context?.previousData) {
-        utils.todo.getAll.setData(queryInput, context.previousData)
+        utils.todo.getAll.setData(undefined, context.previousData)
       }
 
       if (context?.previousGetByIdData && task) {

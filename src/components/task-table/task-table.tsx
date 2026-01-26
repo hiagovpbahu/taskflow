@@ -54,48 +54,44 @@ export function TaskTable() {
     data: todosData,
     isLoading,
     error,
-  } = api.todo.getAll.useQuery({
-    userId: selectedUserId ?? undefined,
-    status: selectedStatus,
-  })
+  } = api.todo.getAll.useQuery()
 
   const { data: users } = api.user.getAll.useQuery()
   const { data: statusOptions } = api.todo.getStatusOptions.useQuery()
 
   const utils = api.useUtils()
 
+  const allTodos = todosData?.todos ?? []
+
+  const todos = useMemo(() => {
+    return allTodos.filter((todo) => {
+      const matchesUser =
+        selectedUserId === null || todo.userId === selectedUserId
+      const matchesStatus =
+        selectedStatus === 'all' ||
+        (selectedStatus === 'completed' && todo.completed) ||
+        (selectedStatus === 'pending' && !todo.completed)
+      return matchesUser && matchesStatus
+    })
+  }, [allTodos, selectedUserId, selectedStatus])
+
   const deleteMutation = api.todo.delete.useMutation({
     onMutate: async (variables) => {
-      await utils.todo.getAll.cancel()
+      await utils.todo.getAll.cancel(undefined)
 
-      const deletedTask = todos.find((todo) => todo.id === variables.id)
-
-      if (!deletedTask) {
-        return { previousData: null }
-      }
-
-      const previousData = utils.todo.getAll.getData({
-        userId: selectedUserId ?? undefined,
-        status: selectedStatus,
-      })
+      const previousData = utils.todo.getAll.getData(undefined)
 
       if (previousData) {
-        utils.todo.getAll.setData(
-          {
-            userId: selectedUserId ?? undefined,
-            status: selectedStatus,
-          },
-          {
-            ...previousData,
-            todos: previousData.todos.filter(
-              (todo) => todo.id !== variables.id,
-            ),
-            total: Math.max(0, previousData.total - 1),
-          },
-        )
+        utils.todo.getAll.setData(undefined, {
+          ...previousData,
+          todos: previousData.todos.filter(
+            (todo) => todo.id !== variables.id,
+          ),
+          total: Math.max(0, previousData.total - 1),
+        })
       }
 
-      return { previousData, deletedTask }
+      return { previousData }
     },
     onSuccess: (_data, variables) => {
       setDeletingTaskId(null)
@@ -108,13 +104,7 @@ export function TaskTable() {
       setShowDeleteDialog(false)
 
       if (context?.previousData) {
-        utils.todo.getAll.setData(
-          {
-            userId: selectedUserId ?? undefined,
-            status: selectedStatus,
-          },
-          context.previousData,
-        )
+        utils.todo.getAll.setData(undefined, context.previousData)
       }
 
       toast.error(`Failed to delete task: ${error.message}`)
@@ -123,47 +113,30 @@ export function TaskTable() {
 
   const updateMutation = api.todo.update.useMutation({
     onMutate: async ({ id, completed }) => {
-      await utils.todo.getAll.cancel()
+      await utils.todo.getAll.cancel(undefined)
 
-      const previousData = utils.todo.getAll.getData({
-        userId: selectedUserId ?? undefined,
-        status: selectedStatus,
-      })
+      const previousData = utils.todo.getAll.getData(undefined)
 
       if (previousData && completed !== undefined) {
-        utils.todo.getAll.setData(
-          {
-            userId: selectedUserId ?? undefined,
-            status: selectedStatus,
-          },
-          {
-            ...previousData,
-            todos: previousData.todos.map((todo) =>
-              todo.id === id ? { ...todo, completed } : todo,
-            ),
-          },
-        )
+        utils.todo.getAll.setData(undefined, {
+          ...previousData,
+          todos: previousData.todos.map((todo) =>
+            todo.id === id ? { ...todo, completed } : todo,
+          ),
+        })
       }
 
       return { previousData }
     },
     onError: (error, _variables, context) => {
       if (context?.previousData) {
-        utils.todo.getAll.setData(
-          {
-            userId: selectedUserId ?? undefined,
-            status: selectedStatus,
-          },
-          context.previousData,
-        )
+        utils.todo.getAll.setData(undefined, context.previousData)
       }
       toast.error(`Failed to update task status: ${error.message}`)
     },
   })
 
   const [updatingTaskId, setUpdatingTaskId] = useState<number | null>(null)
-
-  const todos = todosData?.todos ?? []
 
   const getUserById = useMemo(() => {
     const userMap = new Map(users?.map((user) => [user.id, user]))
@@ -378,14 +351,7 @@ export function TaskTable() {
                 : 'Fill in the details to create a new task.'}
             </DialogDescription>
           </DialogHeader>
-          <TaskForm
-            task={editingTask}
-            onClose={handleCloseTaskDialog}
-            queryParams={{
-              userId: selectedUserId,
-              status: selectedStatus,
-            }}
-          />
+          <TaskForm task={editingTask} onClose={handleCloseTaskDialog} />
         </DialogContent>
       </Dialog>
     </>
