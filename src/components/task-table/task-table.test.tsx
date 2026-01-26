@@ -180,7 +180,7 @@ describe('TaskTable', () => {
     expect(screen.getByText('Actions')).toBeInTheDocument()
   })
 
-  it('should send filter params to backend', () => {
+  it('should fetch all todos without filter params', () => {
     render(<TaskTable />)
 
     expect(mockTodoUseQuery).toHaveBeenCalled()
