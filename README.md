@@ -13,6 +13,33 @@ A modern, responsive task management dashboard built with React, TypeScript, and
 - **Error Handling**: Comprehensive error handling with user-friendly messages
 - **Loading States**: Skeleton components and loading indicators throughout
 - **Responsive Design**: Mobile-first design that works on all screen sizes
+- **Accessibility considerations**: keyboard navigation, ARIA labels, screen reader
+support
+- **Test coverage**: Component and API tests
+- **Error boundary implementation**
+- **Dark mode support**
+
+## Key Technical Decisions
+
+- Used tRPC with @tanstack/react-query: It adds API type-safety and makes the data flow much cleaner;
+- Used biomejs instead of Prettier/Eslint: eslint extension was behaving differently than it used to so took the opportunity to use biomejs in this project, its fast and it combines both prettier and eslint in an easy to configure library. It's speed is really worth it;
+- Removed pagination and modal-based create/edit: I understood that the idea for the optimistic updates was to see the create/edit on the list without fetching, so I opted for that since when we create an item it goes to the last page, and sometimes we dont have a cache to be updated if we didnt go to the last pages, so this works better overall for the idea of this project;
+- I used React Hook Form + Zod for form handling since I think that these are the libraries that provide the best type-safety and performance related to forms, it's the most versatile as well to build generic components for future reuse.
+- I didn't create too many generic components since it would take some additional time, but I do love type-safe components where we can generate lists/forms from a strutucted object; unfortunately would take extra time to do that and not much value since there isn't much able to be reused for actual features, so opted to prioritize requirements.
+
+## Future improvements
+
+- **Bulk operations**: select multiple tasks, bulk delete/update
+- **Drag and drop: reorder tasks**: reorder tasks
+- **Keyboard shortcuts**: quick actions (e.g., Ctrl+N for new task)
+- **Undo/redo**: action history for mutations
+- **Toast queue**: manage multiple toasts better
+- **Sorting**: by date, title, user, status
+- **Offline support**: service worker, queue mutations when offline
+- **Real-time updates**: WebSocket/SSE for live updates
+- **Error logging**: Sentry or similar for production errors
+- **Rate limiting**: prevent API abuse
+- **Content Security Policy**: configure CSP headers
 
 ## Tech Stack
 
