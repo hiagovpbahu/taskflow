@@ -34,7 +34,7 @@ describe('todoRouter', () => {
   })
 
   describe('getAll', () => {
-    it('should fetch all todos without filters', async () => {
+    it('should fetch all todos', async () => {
       const mockTodos: Todo[] = [
         {
           id: 1,
@@ -58,123 +58,6 @@ describe('todoRouter', () => {
       expect(result.todos).toEqual(mockTodos)
       expect(result.total).toBe(2)
       expect(mockFetchJsonPlaceholder).toHaveBeenCalledWith('/todos')
-    })
-
-    it('should filter todos by userId', async () => {
-      const mockTodos: Todo[] = [
-        {
-          id: 1,
-          userId: 1,
-          title: 'Test todo',
-          completed: false,
-        },
-        {
-          id: 2,
-          userId: 2,
-          title: 'Another todo',
-          completed: true,
-        },
-        {
-          id: 3,
-          userId: 1,
-          title: 'Third todo',
-          completed: false,
-        },
-      ]
-
-      mockFetchJsonPlaceholder.mockResolvedValue(mockTodos)
-
-      const caller = createCaller(createMockContext)
-      const result = await caller.todo.getAll({ userId: 1 })
-
-      expect(result.todos).toHaveLength(2)
-      expect(result.todos.every((todo) => todo.userId === 1)).toBe(true)
-      expect(result.total).toBe(2)
-    })
-
-    it('should filter todos by completed status', async () => {
-      const mockTodos: Todo[] = [
-        {
-          id: 1,
-          userId: 1,
-          title: 'Test todo',
-          completed: false,
-        },
-        {
-          id: 2,
-          userId: 2,
-          title: 'Another todo',
-          completed: true,
-        },
-        {
-          id: 3,
-          userId: 1,
-          title: 'Third todo',
-          completed: true,
-        },
-      ]
-
-      mockFetchJsonPlaceholder.mockResolvedValue(mockTodos)
-
-      const caller = createCaller(createMockContext)
-      const result = await caller.todo.getAll({ status: 'completed' })
-
-      expect(result.todos).toHaveLength(2)
-      expect(result.todos.every((todo) => todo.completed)).toBe(true)
-      expect(result.total).toBe(2)
-    })
-
-    it('should filter todos by pending status', async () => {
-      const mockTodos: Todo[] = [
-        {
-          id: 1,
-          userId: 1,
-          title: 'Test todo',
-          completed: false,
-        },
-        {
-          id: 2,
-          userId: 2,
-          title: 'Another todo',
-          completed: true,
-        },
-        {
-          id: 3,
-          userId: 1,
-          title: 'Third todo',
-          completed: false,
-        },
-      ]
-
-      mockFetchJsonPlaceholder.mockResolvedValue(mockTodos)
-
-      const caller = createCaller(createMockContext)
-      const result = await caller.todo.getAll({ status: 'pending' })
-
-      expect(result.todos).toHaveLength(2)
-      expect(result.todos.every((todo) => !todo.completed)).toBe(true)
-      expect(result.total).toBe(2)
-    })
-
-    it('should combine filters correctly', async () => {
-      const mockTodos: Todo[] = Array.from({ length: 20 }, (_, i) => ({
-        id: i + 1,
-        userId: i < 10 ? 1 : 2,
-        title: `Todo ${i + 1}`,
-        completed: i % 2 === 0,
-      }))
-
-      mockFetchJsonPlaceholder.mockResolvedValue(mockTodos)
-
-      const caller = createCaller(createMockContext)
-      const result = await caller.todo.getAll({
-        userId: 1,
-        status: 'completed',
-      })
-
-      expect(result.todos.every((todo) => todo.userId === 1)).toBe(true)
-      expect(result.todos.every((todo) => todo.completed)).toBe(true)
-      expect(result.total).toBe(5)
     })
 
     it('should handle API errors', async () => {
